@@ -1,0 +1,39 @@
+import { DataTypes, Model } from "sequelize";
+import { sequelizeInstance } from "../db/index.js";
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+
+export class User extends Model{
+    async isPasswordCorrect(password) {
+        return await bcrypt.compare(password, this.password);
+    }
+
+    generateAccessToken() {
+        const token = jwt.sign({
+            "username":this.username
+        },process.env.ACCESS_TOKEN_SECRET_KEY,{
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRE_IN
+        });
+        return token;
+    }
+}
+
+User.init({
+    username: {
+        type: DataTypes.STRING,
+        primaryKey: true
+    },
+    password: {
+        type: DataTypes.STRING,
+        allowNull: false
+    }
+},{
+    sequelize: sequelizeInstance,
+    hooks:{
+        beforeSave: async (user) => {
+            if(!user.changed('password')) return;
+            user.password = await bcrypt.hash(user.password, 10);
+        }
+    },
+    tableName: "users"
+});
